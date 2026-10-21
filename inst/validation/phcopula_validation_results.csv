@@ -1,0 +1,14 @@
+"check","max_abs_difference","tolerance","pass"
+"BB1 copula components",0,1e-10,TRUE
+"Clayton copula components",0,1e-10,TRUE
+"Gumbel copula components",0,1e-10,TRUE
+"BB1 total logLik",0,1e-06,TRUE
+"BB1 theta",0,1e-05,TRUE
+"BB1 delta",0,1e-05,TRUE
+"BB1 log-WR grid",2.22044604925031e-16,1e-05,TRUE
+"CLAYTON total logLik",0,1e-06,TRUE
+"CLAYTON theta",0,1e-05,TRUE
+"CLAYTON log-WR grid",2.22044604925031e-16,1e-05,TRUE
+"GUMBEL total logLik",0,1e-06,TRUE
+"GUMBEL theta",0,1e-05,TRUE
+"GUMBEL log-WR grid",2.22044604925031e-16,1e-05,TRUE

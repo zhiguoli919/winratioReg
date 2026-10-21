@@ -1,0 +1,13 @@
+citHeader("To cite winratioReg in publications, please use:")
+
+bibentry(
+  bibtype = "Manual",
+  title = "winratioReg: Flexible Regression Methods for Covariate-Specific Win Ratios",
+  author = c(
+    person("Zhiguo", "Li"),
+    person("Xiaofei", "Wang")
+  ),
+  year = "2026",
+  note = "R package version 1.0.0",
+  url = "https://github.com/zhiguoli919/winratioReg"
+)

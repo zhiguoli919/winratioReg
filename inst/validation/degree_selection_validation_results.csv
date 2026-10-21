@@ -1,0 +1,6 @@
+"check","max_abs_difference","tolerance","pass"
+"candidate logLik values",0,1e-06,TRUE
+"candidate AIC values",0,1e-06,TRUE
+"candidate BIC values",0,1e-06,TRUE
+"selected degree equals minimum-BIC manual fit",0,0,TRUE
+"selected degree common to both margins",0,0,TRUE

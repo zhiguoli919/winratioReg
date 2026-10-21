@@ -1,0 +1,13 @@
+"check","max_abs_difference","tolerance","pass"
+"Frank C",5.55111512312578e-17,1e-10,TRUE
+"Frank partial derivatives",2.92069701757214e-11,5e-06,TRUE
+"Frank density",2.22044604925031e-16,1e-08,TRUE
+"Gaussian C",1.11022302462516e-16,2e-08,TRUE
+"Gaussian partial derivatives",4.96682694972606e-11,5e-06,TRUE
+"Gaussian density",8.88178419700125e-16,1e-08,TRUE
+"Frank independence limit",0,1e-10,TRUE
+"Gaussian independence limit",1.11022302462516e-16,1e-10,TRUE
+"Frank Kendall tau",1.11022302462516e-16,1e-08,TRUE
+"Gaussian Kendall tau",0,1e-10,TRUE
+"Frank full fit smoke test",0,0,TRUE
+"Gaussian full fit smoke test",0,0,TRUE

@@ -1,0 +1,13 @@
+"check","max_abs_difference","tolerance","pass"
+"1D bandwidth",0,1e-10,TRUE
+"1D WR grid",0,1e-10,TRUE
+"1D log-WR grid",0,1e-10,TRUE
+"1D BLP coefficients",0,1e-10,TRUE
+"1D lack-of-fit D",0,1e-10,TRUE
+"1D scaled statistic N*h*D",0,1e-10,TRUE
+"2D bandwidth",0,1e-10,TRUE
+"2D WR grid",0,1e-10,TRUE
+"2D log-WR grid",0,1e-10,TRUE
+"2D BLP coefficients",0,1e-10,TRUE
+"2D lack-of-fit D",0,1e-10,TRUE
+"2D scaled statistic N*h1*h2*D",0,1e-10,TRUE

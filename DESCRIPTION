@@ -1,0 +1,33 @@
+Package: winratioReg
+Type: Package
+Title: Flexible Regression Methods for Covariate-Specific Win Ratios
+Version: 1.0.0
+Authors@R: c(
+    person("Zhiguo", "Li", email = "zhiguo.li@duke.edu", role = c("aut", "cre")),
+    person("Xiaofei", "Wang", role = "aut")
+    )
+Description: Implements flexible estimation and inference for covariate-specific
+    win ratios with prioritized time-to-event outcomes. The package provides a
+    local inverse probability of censoring weighted (IPCW) estimator and a
+    model-based proportional hazards copula estimator with Bernstein-sieve
+    baseline hazards and BB1, Clayton, Frank, Gaussian, or Gumbel working
+    survival copulas. The package also provides bootstrap inference, best linear
+    projections, constancy and log-linearity tests, and optional BIC selection
+    of a common Bernstein degree.
+License: GPL-3
+Encoding: UTF-8
+Depends: R (>= 4.0.0)
+Imports:
+    graphics,
+    pbivnorm,
+    stats,
+    survival
+Suggests:
+    copula,
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+URL: https://github.com/zhiguoli919/winratioReg
+BugReports: https://github.com/zhiguoli919/winratioReg/issues
+Config/testthat/edition: 3
+VignetteBuilder: knitr

@@ -1,0 +1,173 @@
+---
+title: "Introduction to winratioReg"
+author: "Zhiguo Li and Xiaofei Wang"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to winratioReg}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+## Overview
+
+`winratioReg` estimates a fixed-horizon covariate-specific win ratio for two prioritized time-to-event outcomes. The package provides two complementary procedures:
+
+1. **Local IPCW**, which estimates the win-ratio curve or surface flexibly using local smoothing and inverse probability of censoring weighting.
+2. **PH--copula**, which combines proportional-hazards marginal models, Bernstein-sieve baseline cumulative hazards, and a working copula model for within-subject dependence.
+
+Low-dimensional summaries are obtained through best linear projections (BLPs) of the estimated log win ratio. Bootstrap procedures provide pointwise inference and tests of constancy or log-linearity.
+
+## Example data and observation scheme
+
+```{r data}
+library(winratioReg)
+data(winratio_example)
+head(winratio_example)
+```
+
+The primary outcome is terminal. The package therefore expects the observed secondary time to satisfy `U2 <= U1`. The example data are synthetic and are included only to illustrate package syntax.
+
+## Local IPCW
+
+For a quick point estimate, set `B = 0`:
+
+```{r local, eval=FALSE}
+fit_local <- winratio_local(
+  data = winratio_example,
+  arm = "treat",
+  time1 = "U1", status1 = "Delta1",
+  time2 = "U2", status2 = "Delta2",
+  covariates = "x1",
+  tau = 4,
+  bandwidth = "stability",
+  B = 0
+)
+
+fit_local
+blp(fit_local)
+plot(fit_local)
+```
+
+For inference, refit with a positive number of ordinary within-arm bootstrap resamples:
+
+```{r local-bootstrap, eval=FALSE}
+fit_local_boot <- winratio_local(
+  data = winratio_example,
+  arm = "treat",
+  time1 = "U1", status1 = "Delta1",
+  time2 = "U2", status2 = "Delta2",
+  covariates = "x1",
+  tau = 4,
+  bandwidth = "stability",
+  B = 500,
+  seed = 20261021
+)
+
+summary(fit_local_boot)
+test_loglinearity(fit_local_boot)
+```
+
+The bandwidth is selected from the original sample and held fixed across bootstrap resamples.
+
+## PH--copula
+
+The PH--copula method accepts a one-sided formula for the marginal PH covariate basis. It supports BB1, Clayton, Frank, Gaussian, and Gumbel working survival copulas.
+
+```{r ph, eval=FALSE}
+fit_ph <- winratio_phcopula(
+  data = winratio_example,
+  arm = "treat",
+  time1 = "U1", status1 = "Delta1",
+  time2 = "U2", status2 = "Delta2",
+  formula = ~ splines::ns(x1, df = 3),
+  tau = 4,
+  copula = "gaussian",
+  degree = 6,
+  B = 0
+)
+
+fit_ph
+blp(fit_ph)
+logLik(fit_ph)
+```
+
+With `B > 0`, inference uses independent arm-specific Exp(1) multiplier weights and refits the PH--copula model in each bootstrap sample.
+
+## Bernstein degree
+
+The degree may be common to both margins,
+
+```{r degree-fixed, eval=FALSE}
+fit_ph <- winratio_phcopula(..., degree = 6)
+```
+
+or specified separately,
+
+```{r degree-separate, eval=FALSE}
+fit_ph <- winratio_phcopula(..., degree = c(5, 6))
+```
+
+or selected by BIC from a candidate set:
+
+```{r degree-auto, eval=FALSE}
+fit_degree <- winratio_phcopula(
+  data = winratio_example,
+  arm = "treat",
+  time1 = "U1", status1 = "Delta1",
+  time2 = "U2", status2 = "Delta2",
+  formula = ~ x1,
+  tau = 4,
+  copula = "gaussian",
+  degree = "auto",
+  degree_candidates = 3:7,
+  B = 0
+)
+
+fit_degree$degree
+fit_degree$degree_selection$table
+```
+
+Automatic selection currently chooses one common degree for both margins. The selected degree is then held fixed for bootstrap refits.
+
+## Comparing working copulas
+
+When comparing copula families, keep the marginal PH specification and Bernstein degrees fixed:
+
+```{r compare, eval=FALSE}
+cmp <- compare_copulas(
+  data = winratio_example,
+  arm = "treat",
+  time1 = "U1", status1 = "Delta1",
+  time2 = "U2", status2 = "Delta2",
+  formula = ~ splines::ns(x1, df = 3),
+  tau = 4,
+  copulas = c("bb1", "clayton", "frank", "gaussian", "gumbel"),
+  degree = 6
+)
+
+cmp
+```
+
+AIC and BIC compare working models; they do not establish that a copula is correct. In applications, a small scientifically plausible set of copulas can be fit as a sensitivity analysis.
+
+## Best linear projections and lack-of-fit tests
+
+`blp()` treats a low-dimensional linear summary as a projection of the estimated log win ratio rather than as a required structural model:
+
+```{r blp, eval=FALSE}
+blp(fit_local_boot, type = "linear")
+blp(fit_ph, type = "linear")
+```
+
+With bootstrap inference enabled, use
+
+```{r tests, eval=FALSE}
+test_constancy(fit_local_boot)
+test_loglinearity(fit_local_boot)
+```
+
+to assess whether a constant or linear approximation adequately represents the estimated log win-ratio pattern over the chosen grid.
