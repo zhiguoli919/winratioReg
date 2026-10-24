@@ -46,7 +46,7 @@ fit_local <- winratio_local(
   time1 = "U1", status1 = "Delta1",
   time2 = "U2", status2 = "Delta2",
   covariates = "x1",
-  tau = 4,
+  tau = 5,
   bandwidth = "stability",
   B = 200,
   seed = 20261021
@@ -71,7 +71,7 @@ fit_ph <- winratio_phcopula(
   time1 = "U1", status1 = "Delta1",
   time2 = "U2", status2 = "Delta2",
   formula = ~ splines::ns(x1, df = 3),
-  tau = 4,
+  tau = 5,
   copula = "gaussian",
   degree = 6,
   B = 0,
@@ -92,16 +92,20 @@ fit_ph_boot <- winratio_phcopula(
   time1 = "U1", status1 = "Delta1",
   time2 = "U2", status2 = "Delta2",
   formula = ~ splines::ns(x1, df = 3),
-  tau = 4,
+  tau = 5,
   copula = "gaussian",
   degree = 6,
-  B = 200,
+  B = 20,
   multistart = FALSE,
   parallel = TRUE,
   seed = 20261021,
   verbose = TRUE
 )
+```
+B = 20 is used here for a quick illustration. For final inference, use a larger number of bootstrap replicates (e.g., B = 200 or more). 
+The multiplier bootstrap can be parallelized with parallel = TRUE.
 
+```r
 summary(fit_ph_boot)
 blp(fit_ph_boot)
 test_loglinearity(fit_ph_boot)
@@ -154,7 +158,7 @@ cmp <- compare_copulas(
   time1 = "U1", status1 = "Delta1",
   time2 = "U2", status2 = "Delta2",
   formula = ~ splines::ns(x1, df = 3),
-  tau = 4,
+  tau = 5,
   copulas = c("bb1", "clayton", "frank", "gaussian", "gumbel"),
   degree = 6
 )
