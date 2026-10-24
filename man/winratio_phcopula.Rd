@@ -10,8 +10,9 @@ winratio_phcopula(
   grid_probs = c(0.05, 0.95), B = 200L, conf.level = 0.95,
   projection_weights = NULL, seed = NULL, multistart = TRUE,
   maxit = 2000L, bootstrap_maxit = 1200L,
+  integration_method = c("simpson", "adaptive"), integration_grid = 401L,
   integration_reltol = 1e-7, integration_subdivisions = 300L,
-  verbose = FALSE
+  parallel = FALSE, ncores = NULL, verbose = FALSE
 )
 }
 \arguments{
@@ -35,8 +36,12 @@ winratio_phcopula(
   \item{seed}{Optional multiplier-bootstrap seed.}
   \item{multistart}{Use multiple dependence-parameter starting values for the original fit.}
   \item{maxit, bootstrap_maxit}{Maximum optimizer iterations for original and bootstrap fits.}
-  \item{integration_reltol}{Relative tolerance for numerical integration of win/loss probabilities.}
-  \item{integration_subdivisions}{Maximum integration subdivisions.}
+  \item{integration_method}{Win/loss integration method. The default \code{"simpson"} uses a vectorized fixed Simpson grid; \code{"adaptive"} retains the adaptive integration used in version 1.0.0.}
+  \item{integration_grid}{Odd number of time-grid points for Simpson integration; default 401. Ignored for adaptive integration.}
+  \item{integration_reltol}{Relative tolerance for adaptive numerical integration of win/loss probabilities.}
+  \item{integration_subdivisions}{Maximum subdivisions for adaptive integration.}
+  \item{parallel}{Logical; if \code{TRUE}, multiplier-bootstrap replicates are run on a PSOCK cluster. Original arm fits remain serial.}
+  \item{ncores}{Number of bootstrap workers when \code{parallel = TRUE}. If \code{NULL}, up to 16 workers are used while leaving at least one detected logical core free.}
   \item{verbose}{Print fitting and bootstrap progress.}
 }
 \value{
@@ -56,7 +61,14 @@ The copula is applied on the survival scale. Frank dependence uses its usual
 scalar theta; Gaussian dependence uses the latent-normal correlation rho.
 Pointwise uncertainty uses an arm-specific Exp(1) weighted multiplier bootstrap.
 The same bootstrap provides inference for best linear projections and centered
-tests of constancy and log-linearity.
+tests of constancy and log-linearity. Bootstrap replicates can be evaluated in
+parallel with \code{parallel = TRUE}; multiplier weights are generated on the
+master process before parallel fitting so a fixed seed gives the same weights
+in serial and parallel modes.
+
+By default, win/loss probabilities are evaluated with a vectorized 401-point
+Simpson rule. Set \code{integration_method = "adaptive"} to use the adaptive
+integration strategy from version 1.0.0.
 
 When \code{degree = "auto"}, one common Bernstein degree for the two margins is
 selected by minimizing total BIC across the two arm-specific likelihoods. The

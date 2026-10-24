@@ -9,13 +9,14 @@ compare_copulas(
   copulas = c("bb1", "clayton", "frank", "gaussian", "gumbel"), degree = 6L,
   sieve_upper = NULL, grid = NULL, grid_length = NULL,
   grid_probs = c(0.05, 0.95), projection_weights = NULL,
-  multistart = TRUE, maxit = 2000L, integration_reltol = 1e-7,
-  integration_subdivisions = 300L, verbose = FALSE
+  multistart = TRUE, maxit = 2000L,
+  integration_method = c("simpson", "adaptive"), integration_grid = 401L,
+  integration_reltol = 1e-7, integration_subdivisions = 300L, verbose = FALSE
 )
 \method{print}{winratio_copula_comparison}(x, ...)
 }
 \arguments{
-  \item{data, arm, time1, status1, time2, status2, formula, tau, treatment, control, degree, sieve_upper, grid, grid_length, grid_probs, projection_weights, multistart, maxit, integration_reltol, integration_subdivisions, verbose}{See \code{winratio_phcopula}. The \code{degree} argument must be explicitly specified; \code{"auto"} is not allowed here.}
+  \item{data, arm, time1, status1, time2, status2, formula, tau, treatment, control, degree, sieve_upper, grid, grid_length, grid_probs, projection_weights, multistart, maxit, integration_method, integration_grid, integration_reltol, integration_subdivisions, verbose}{See \code{winratio_phcopula}. The \code{degree} argument must be explicitly specified; \code{"auto"} is not allowed here.}
   \item{copulas}{Candidate families selected from BB1, Clayton, Frank, Gaussian, and Gumbel.}
   \item{x}{A copula-comparison object.}
   \item{...}{Additional printing arguments.}

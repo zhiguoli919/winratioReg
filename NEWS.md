@@ -1,3 +1,11 @@
+# winratioReg 1.0.1
+
+- Accelerated PH--copula win-ratio evaluation with vectorized Simpson integration (`integration_method = "simpson"`, 201 points by default); the version 1.0.0 adaptive integrator remains available with `integration_method = "adaptive"`.
+- Added optional Windows-compatible parallel multiplier bootstrap via `parallel = TRUE` and `ncores`.
+- Multiplier weights are generated on the master process before parallel fitting, so fixed-seed serial and parallel runs use the same bootstrap weights.
+- Removed a duplicate evaluation of the original PH--copula win-ratio curve inside the bootstrap routine.
+- Accelerated the Gaussian likelihood by evaluating the bivariate-normal CDF only for observations whose censoring pattern requires the joint copula probability; this is algebraically equivalent to the previous likelihood calculation.
+
 # winratioReg 1.0.0
 
 - First stable release of `winratioReg`.

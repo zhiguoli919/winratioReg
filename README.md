@@ -2,7 +2,7 @@
 
 `winratioReg` implements flexible regression methods for **covariate-specific win ratios** with prioritized time-to-event outcomes.
 
-Version **1.0.0** provides two complementary estimators:
+Version **1.0.1** provides two complementary estimators:
 
 - **Local IPCW**, a flexible kernel-smoothed estimator that does not impose a parametric shape on the covariate-specific win ratio;
 - **PH--copula**, a model-based estimator with proportional-hazards margins, Bernstein-sieve baseline cumulative hazards, and BB1, Clayton, Frank, Gaussian, or Gumbel working survival copulas.
@@ -62,6 +62,8 @@ For point estimation only, use `B = 0`. Local IPCW currently supports one or two
 
 ## PH--copula
 
+For a quick point-estimation fit:
+
 ```r
 fit_ph <- winratio_phcopula(
   data = winratio_example,
@@ -72,15 +74,43 @@ fit_ph <- winratio_phcopula(
   tau = 4,
   copula = "gaussian",
   degree = 6,
-  B = 200,
-  seed = 20261021
+  B = 0,
+  multistart = FALSE
 )
 
-summary(fit_ph)
+fit_ph
 blp(fit_ph)
-test_loglinearity(fit_ph)
 plot(fit_ph)
 ```
+
+For bootstrap inference, `parallel = TRUE` distributes the independent multiplier-bootstrap refits across a PSOCK cluster (including on Windows):
+
+```r
+fit_ph_boot <- winratio_phcopula(
+  data = winratio_example,
+  arm = "treat",
+  time1 = "U1", status1 = "Delta1",
+  time2 = "U2", status2 = "Delta2",
+  formula = ~ splines::ns(x1, df = 3),
+  tau = 4,
+  copula = "gaussian",
+  degree = 6,
+  B = 200,
+  multistart = FALSE,
+  parallel = TRUE,
+  seed = 20261021,
+  verbose = TRUE
+)
+
+summary(fit_ph_boot)
+blp(fit_ph_boot)
+test_loglinearity(fit_ph_boot)
+plot(fit_ph_boot)
+```
+
+The original-sample fit is serial; `parallel = TRUE` parallelizes only the bootstrap replicates. If `ncores` is omitted, the package uses up to 16 workers while leaving at least one detected logical core free. `multistart = TRUE` remains the conservative default; `FALSE` is used above to keep the example quick.
+
+Version 1.0.1 uses a vectorized 401-point Simpson rule by default for win/loss integration. The version 1.0.0 adaptive calculation remains available with `integration_method = "adaptive"`.
 
 The `copula` argument accepts `"bb1"`, `"clayton"`, `"frank"`, `"gaussian"`, or `"gumbel"`. BB1, Clayton, and Gumbel are positive-dependence families in the implemented parameterizations; Frank and Gaussian also allow negative dependence.
 

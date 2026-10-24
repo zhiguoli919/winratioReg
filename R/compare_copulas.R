@@ -26,9 +26,12 @@ compare_copulas <- function(data, arm, time1, status1, time2, status2,
                             grid_probs = c(0.05, 0.95),
                             projection_weights = NULL,
                             multistart = TRUE, maxit = 2000L,
+                            integration_method = c("simpson", "adaptive"),
+                            integration_grid = 401L,
                             integration_reltol = 1e-7,
                             integration_subdivisions = 300L,
                             verbose = FALSE) {
+  integration_method <- match.arg(integration_method)
   if (.ph_is_auto_degree(degree)) {
     stop(
       "compare_copulas() requires an explicit Bernstein degree so every copula is compared with the same marginal sieve specification. Select a degree first with winratio_phcopula(..., degree = 'auto', B = 0), then pass fit$degree here.",
@@ -57,6 +60,8 @@ compare_copulas <- function(data, arm, time1, status1, time2, status2,
       grid = grid, grid_length = grid_length, grid_probs = grid_probs,
       B = 0L, projection_weights = projection_weights,
       multistart = multistart, maxit = maxit,
+      integration_method = integration_method,
+      integration_grid = integration_grid,
       integration_reltol = integration_reltol,
       integration_subdivisions = integration_subdivisions,
       verbose = verbose

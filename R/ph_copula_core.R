@@ -214,6 +214,54 @@
   )
 }
 
+## Gaussian likelihood contributions can avoid the expensive bivariate-normal
+## CDF except for observations whose contribution actually contains C(u,v).
+## This is algebraically identical to .ph_gaussian_components() followed by
+## subsetting, but is substantially faster inside repeated optimizations.
+.ph_gaussian_loglik_by_pattern <- function(S1, S2, logf1, logf2, d1, d2, rho) {
+  eps <- 1e-12
+  if (!is.finite(rho) || abs(rho) >= 1) {
+    stop("Gaussian rho must lie strictly between -1 and 1.", call. = FALSE)
+  }
+  u <- pmin(pmax(as.numeric(S1), eps), 1 - eps)
+  v <- pmin(pmax(as.numeric(S2), eps), 1 - eps)
+  x <- stats::qnorm(u)
+  y <- stats::qnorm(v)
+  s2 <- 1 - rho^2
+  ss <- sqrt(s2)
+
+  both_events <- d1 == 1L & d2 == 1L
+  only1 <- d1 == 1L & d2 == 0L
+  only2 <- d1 == 0L & d2 == 1L
+  both_cens <- d1 == 0L & d2 == 0L
+  ll <- numeric(length(u))
+
+  if (any(both_events)) {
+    xb <- x[both_events]
+    yb <- y[both_events]
+    log_density <- -log(ss) +
+      (2 * rho * xb * yb - rho^2 * (xb^2 + yb^2)) / (2 * s2)
+    log_density <- pmin(pmax(log_density, log(eps)), 700)
+    ll[both_events] <- logf1[both_events] + logf2[both_events] + log_density
+  }
+  if (any(only1)) {
+    Cu <- stats::pnorm((y[only1] - rho * x[only1]) / ss)
+    Cu <- pmin(pmax(Cu, eps), 1)
+    ll[only1] <- logf1[only1] + log(Cu)
+  }
+  if (any(only2)) {
+    Cv <- stats::pnorm((x[only2] - rho * y[only2]) / ss)
+    Cv <- pmin(pmax(Cv, eps), 1)
+    ll[only2] <- logf2[only2] + log(Cv)
+  }
+  if (any(both_cens)) {
+    C <- pbivnorm::pbivnorm(x[both_cens], y[both_cens], rho = rho)
+    C <- pmin(pmax(C, eps), 1)
+    ll[both_cens] <- log(C)
+  }
+  ll
+}
+
 .ph_frank_debye1 <- function(theta) {
   if (abs(theta) < 1e-6) {
     ## D_1(theta) = 1 - theta/4 + theta^2/36 + O(theta^4)
@@ -425,11 +473,23 @@
   S2 <- exp(pmax(logS2, -700))
   logf1 <- log(b1$lambda) + lp1 + logS1
   logf2 <- log(b2$lambda) + lp2 + logS2
-  cc <- try(.ph_copula_components(S1, S2, pars$dependence, family), silent = TRUE)
-  if (inherits(cc, "try-error")) return(rep(-Inf, nrow(dat)))
 
   d1 <- dat$Delta1
   d2 <- dat$Delta2
+
+  if (family == "gaussian") {
+    ll <- try(.ph_gaussian_loglik_by_pattern(
+      S1, S2, logf1, logf2, d1, d2, pars$dependence$theta
+    ), silent = TRUE)
+    if (inherits(ll, "try-error") || any(!is.finite(ll))) {
+      return(rep(-Inf, nrow(dat)))
+    }
+    return(ll)
+  }
+
+  cc <- try(.ph_copula_components(S1, S2, pars$dependence, family), silent = TRUE)
+  if (inherits(cc, "try-error")) return(rep(-Inf, nrow(dat)))
+
   both_events <- d1 == 1L & d2 == 1L
   only1 <- d1 == 1L & d2 == 0L
   only2 <- d1 == 0L & d2 == 1L
@@ -581,9 +641,93 @@
   )
 }
 
-.ph_logwr_grid <- function(fit1, fit0, X_grid, tau, rel.tol = 1e-7, subdivisions = 300L) {
+.ph_simpson_rule <- function(tau, n = 401L) {
+  if (!is.numeric(n) || length(n) != 1L || !is.finite(n) ||
+      n < 3 || n != as.integer(n) || n %% 2L != 1L) {
+    stop("integration_grid must be an odd integer of at least 3.", call. = FALSE)
+  }
+  n <- as.integer(n)
+  tt <- seq(0, tau, length.out = n)
+  h <- tau / (n - 1L)
+  ww <- rep(2, n)
+  ww[seq.int(2L, n - 1L, by = 2L)] <- 4
+  ww[c(1L, n)] <- 1
+  list(t = tt, w = ww * h / 3)
+}
+
+.ph_margin_grid_from_fit <- function(fit, margin, X_grid, t) {
+  if (margin == 1L) {
+    beta <- fit$beta1
+    phi <- fit$phi1
+  } else {
+    beta <- fit$beta2
+    phi <- fit$phi2
+  }
+  b <- .ph_baseline_eval(t, phi, lower = fit$lower, upper = fit$upper)
+  lp <- as.vector(X_grid %*% beta)
+  rr <- exp(lp)
+  cumhaz <- outer(b$Lambda, rr, "*")
+  S <- exp(-cumhaz)
+  f <- outer(b$lambda, rr, "*") * S
+  list(S = S, f = f)
+}
+
+.ph_copula_component_matrix <- function(U, V, dependence, family, component) {
+  if (!identical(dim(U), dim(V))) stop("Internal copula matrix dimension mismatch.", call. = FALSE)
+  cc <- .ph_copula_components(as.vector(U), as.vector(V), dependence, family)
+  matrix(cc[[component]], nrow = nrow(U), ncol = ncol(U))
+}
+
+.ph_logwr_grid_simpson <- function(fit1, fit0, X_grid, tau, n_grid = 401L) {
+  if (!identical(fit1$family, fit0$family)) {
+    stop("Treatment arms use different copula families.", call. = FALSE)
+  }
+  family <- fit1$family
+  rule <- .ph_simpson_rule(tau, n = n_grid)
+  tt <- rule$t
+  ww <- rule$w
+
+  m11 <- .ph_margin_grid_from_fit(fit1, 1L, X_grid, tt)
+  m10 <- .ph_margin_grid_from_fit(fit0, 1L, X_grid, tt)
+  m21 <- .ph_margin_grid_from_fit(fit1, 2L, X_grid, tt)
+  m20 <- .ph_margin_grid_from_fit(fit0, 2L, X_grid, tt)
+
+  W_primary <- colSums((m11$S * m10$f) * ww)
+  L_primary <- colSums((m10$S * m11$f) * ww)
+
+  nr <- length(tt)
+  ng <- nrow(X_grid)
+  S11_tau <- m11$S[nr, ]
+  S10_tau <- m10$S[nr, ]
+  S11_mat <- matrix(S11_tau, nrow = nr, ncol = ng, byrow = TRUE)
+  S10_mat <- matrix(S10_tau, nrow = nr, ncol = ng, byrow = TRUE)
+
+  C1 <- .ph_copula_component_matrix(S11_mat, m21$S, fit1$dependence, family, "C")
+  C0 <- .ph_copula_component_matrix(S10_mat, m20$S, fit0$dependence, family, "C")
+  Cv1 <- .ph_copula_component_matrix(S11_mat, m21$S, fit1$dependence, family, "Cv")
+  Cv0 <- .ph_copula_component_matrix(S10_mat, m20$S, fit0$dependence, family, "Cv")
+
+  W_secondary <- colSums((C1 * Cv0 * m20$f) * ww)
+  L_secondary <- colSums((C0 * Cv1 * m21$f) * ww)
+
+  W <- W_primary + W_secondary
+  L <- L_primary + L_secondary
+  bad <- !is.finite(W) | !is.finite(L) | W <= 0 | L <= 0
+  out <- log(W / L)
+  out[bad] <- NA_real_
+  out
+}
+
+.ph_logwr_grid <- function(fit1, fit0, X_grid, tau,
+                           method = c("simpson", "adaptive"), n_grid = 401L,
+                           rel.tol = 1e-7, subdivisions = 300L) {
+  method <- match.arg(method)
+  if (method == "simpson") {
+    return(.ph_logwr_grid_simpson(fit1, fit0, X_grid, tau, n_grid = n_grid))
+  }
   vapply(seq_len(nrow(X_grid)), function(j) {
     .ph_wr_from_fits(fit1, fit0, X_grid[j, ], tau,
                      rel.tol = rel.tol, subdivisions = subdivisions)$logWR
   }, numeric(1))
 }
+

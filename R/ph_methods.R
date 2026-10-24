@@ -15,7 +15,11 @@ print.winratio_phcopula <- function(x, ...) {
   cat("  Grid points:", nrow(x$grid), "\n")
   cat("  Total logLik:", signif(x$loglik, 7),
       " AIC:", signif(x$AIC, 7), " BIC:", signif(x$BIC, 7), "\n")
-  if (x$B > 0L) cat("  Multiplier bootstrap:", x$bootstrap$n_success, "of", x$B, "successful\n")
+  if (x$B > 0L) {
+    cat("  Multiplier bootstrap:", x$bootstrap$n_success, "of", x$B, "successful")
+    if (isTRUE(x$bootstrap$parallel)) cat(" on", x$bootstrap$ncores, "workers")
+    cat("\n")
+  }
   invisible(x)
 }
 
@@ -142,8 +146,11 @@ predict.winratio_phcopula <- function(object, newdata, type = c("response", "lin
     names(newdata) <- object$covariates
   }
   X <- .ph_basis_new(object$basis_spec, newdata)
+  method <- if (!is.null(object$integration$method)) object$integration$method else "adaptive"
+  n_grid <- if (!is.null(object$integration$grid_points)) object$integration$grid_points else 401L
   vals <- .ph_logwr_grid(
     object$fit1, object$fit0, X, object$tau,
+    method = method, n_grid = n_grid,
     rel.tol = object$integration$reltol,
     subdivisions = object$integration$subdivisions
   )

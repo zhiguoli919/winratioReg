@@ -40,9 +40,17 @@
 #'   original likelihood fit.
 #' @param maxit Maximum optimizer iterations for the original arm fits.
 #' @param bootstrap_maxit Maximum optimizer iterations for bootstrap refits.
-#' @param integration_reltol Relative tolerance used in numerical integration
-#'   of win/loss probabilities.
-#' @param integration_subdivisions Maximum integration subdivisions.
+#' @param integration_method Win/loss integration method. The default
+#'   `"simpson"` uses a vectorized fixed Simpson grid; `"adaptive"`
+#'   retains the adaptive integration used in version 1.0.0.
+#' @param integration_grid Odd number of time-grid points for Simpson
+#'   integration. Ignored when `integration_method = "adaptive"`.
+#' @param integration_reltol Relative tolerance used by adaptive integration.
+#' @param integration_subdivisions Maximum subdivisions for adaptive integration.
+#' @param parallel Logical; when `TRUE`, run multiplier-bootstrap replicates on
+#'   a PSOCK cluster. The original arm fits remain serial.
+#' @param ncores Number of bootstrap workers when `parallel = TRUE`. If `NULL`,
+#'   uses up to 16 workers while leaving at least one detected logical core free.
 #' @param verbose Logical; print fitting/bootstrap progress.
 #'
 #' @return An object of class `winratio_phcopula`.
@@ -58,11 +66,15 @@ winratio_phcopula <- function(data, arm, time1, status1, time2, status2,
                               projection_weights = NULL,
                               seed = NULL, multistart = TRUE,
                               maxit = 2000L, bootstrap_maxit = 1200L,
+                              integration_method = c("simpson", "adaptive"),
+                              integration_grid = 401L,
                               integration_reltol = 1e-7,
                               integration_subdivisions = 300L,
+                              parallel = FALSE, ncores = NULL,
                               verbose = FALSE) {
   call <- match.call()
   copula <- tolower(as.character(copula))
+  integration_method <- match.arg(integration_method)
   if (length(copula) != 1L || !copula %in% c("bb1", "clayton", "frank", "gaussian", "gumbel")) {
     stop("copula must be one of 'bb1', 'clayton', 'frank', 'gaussian', or 'gumbel'.", call. = FALSE)
   }
@@ -89,6 +101,22 @@ winratio_phcopula <- function(data, arm, time1, status1, time2, status2,
   if (!is.numeric(maxit) || maxit < 1 || maxit != as.integer(maxit) ||
       !is.numeric(bootstrap_maxit) || bootstrap_maxit < 1 || bootstrap_maxit != as.integer(bootstrap_maxit)) {
     stop("maxit and bootstrap_maxit must be positive integers.", call. = FALSE)
+  }
+  if (!is.numeric(integration_grid) || length(integration_grid) != 1L ||
+      !is.finite(integration_grid) || integration_grid < 3 ||
+      integration_grid != as.integer(integration_grid) || integration_grid %% 2L != 1L) {
+    stop("integration_grid must be an odd integer of at least 3.", call. = FALSE)
+  }
+  integration_grid <- as.integer(integration_grid)
+  if (!is.logical(parallel) || length(parallel) != 1L || is.na(parallel)) {
+    stop("parallel must be TRUE or FALSE.", call. = FALSE)
+  }
+  if (!is.null(ncores)) {
+    if (!is.numeric(ncores) || length(ncores) != 1L || !is.finite(ncores) ||
+        ncores < 1 || ncores != as.integer(ncores)) {
+      stop("ncores must be NULL or a positive integer.", call. = FALSE)
+    }
+    ncores <- as.integer(ncores)
   }
   if (!is.numeric(integration_reltol) || length(integration_reltol) != 1L ||
       !is.finite(integration_reltol) || integration_reltol <= 0) {
@@ -156,6 +184,7 @@ winratio_phcopula <- function(data, arm, time1, status1, time2, status2,
 
   logWR_hat <- .ph_logwr_grid(
     fit1, fit0, X_grid, tau,
+    method = integration_method, n_grid = integration_grid,
     rel.tol = integration_reltol,
     subdivisions = as.integer(integration_subdivisions)
   )
@@ -171,8 +200,10 @@ winratio_phcopula <- function(data, arm, time1, status1, time2, status2,
     boot <- .ph_bootstrap(
       prep$dat1, prep$dat0, fit1, fit0, X_grid, raw_grid, tau,
       qweight, B, conf.level, seed, prep$n, m1, m2,
-      as.integer(bootstrap_maxit), integration_reltol,
-      as.integer(integration_subdivisions), verbose
+      as.integer(bootstrap_maxit), logWR_hat,
+      integration_method, integration_grid, integration_reltol,
+      as.integer(integration_subdivisions), verbose,
+      parallel = parallel, ncores = ncores
     )
   }
 
@@ -230,7 +261,14 @@ winratio_phcopula <- function(data, arm, time1, status1, time2, status2,
     conf.level = conf.level,
     basis_spec = prep$basis,
     analysis_data = list(dat1 = prep$dat1, dat0 = prep$dat0),
-    integration = list(reltol = integration_reltol,
-                       subdivisions = as.integer(integration_subdivisions))
+    integration = list(method = integration_method,
+                       grid_points = integration_grid,
+                       reltol = integration_reltol,
+                       subdivisions = as.integer(integration_subdivisions)),
+    bootstrap_settings = if (is.null(boot)) {
+      list(parallel = isTRUE(parallel), ncores = ncores)
+    } else {
+      list(parallel = isTRUE(boot$parallel), ncores = boot$ncores)
+    }
   ), class = "winratio_phcopula")
 }

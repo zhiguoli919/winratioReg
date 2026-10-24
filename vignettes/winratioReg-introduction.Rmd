@@ -95,7 +95,7 @@ blp(fit_ph)
 logLik(fit_ph)
 ```
 
-With `B > 0`, inference uses independent arm-specific Exp(1) multiplier weights and refits the PH--copula model in each bootstrap sample.
+With `B > 0`, inference uses independent arm-specific Exp(1) multiplier weights and refits the PH--copula model in each bootstrap sample. Set `parallel = TRUE` to distribute bootstrap refits across a PSOCK cluster; this works on Windows as well as Unix-like systems. Win/loss probabilities use a vectorized 401-point Simpson rule by default; `integration_method = "adaptive"` retains the version 1.0.0 adaptive integration.
 
 ## Bernstein degree
 
