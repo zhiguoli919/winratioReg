@@ -1,5 +1,11 @@
 # winratioReg
 
+## Related paper
+
+Li, Z. and Wang, X. (2026). *Flexible Estimation of Covariate-Specific Win Ratio for Prioritized Time-to-Event Outcomes.*
+
+Preprint available on arXiv: [arXiv:2610.34567] (https://arxiv.org/abs/2610.34567).
+
 `winratioReg` implements flexible regression methods for **covariate-specific win ratios** with prioritized time-to-event outcomes.
 
 Version **1.0.1** provides two complementary estimators:
